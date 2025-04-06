@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: ../
+      dockerfile: infra/docker/dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../app:/app
+    environment:
+      - SUGGESTION_MODEL=${SUGGESTION_MODEL:-google/flan-t5-base}
+
+    working_dir: /app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    restart: always
+
+  ui:
+    build:
+      context: ../
+      dockerfile: infra/docker/dockerfile.ui
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    environment:
+      - JSEARCH_API_KEY=${JSEARCH_API_KEY}
+      - API_URL=http://api:8000
+    volumes:
+      - ../ui:/app 
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+
+volumes:
+  grafana-storage:
+
+
