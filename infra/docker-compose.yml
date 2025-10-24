@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   api:
     build:
@@ -9,7 +11,7 @@ services:
       - ../app:/app
     environment:
       - SUGGESTION_MODEL=${SUGGESTION_MODEL:-google/flan-t5-base}
-
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     working_dir: /app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     restart: always
