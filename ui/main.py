@@ -26,8 +26,6 @@ st.markdown("""
         padding-right: 10px;
     }
     .col-box {
-        #border: 1px solid #e0e0e0;
-        #border-radius: 8px;
         padding: 15px;
         background-color: #fafafa;
         margin-bottom: 15px;
@@ -94,7 +92,6 @@ else:
 
     # --- Column 1: Resume & Input Fields ---
     with col1:
-        #st.markdown('<div class="col-box">', unsafe_allow_html=True)
         st.markdown("### 📎 Upload your Resume")
         uploaded_file = st.file_uploader("", type=["pdf", "docx", "txt"])
         if uploaded_file:
@@ -124,11 +121,9 @@ else:
                 "selected_job_index": 0
             })
             st.experimental_rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Column 2: Job Selection ---
     with col2:
-        #st.markdown('<div class="col-box">', unsafe_allow_html=True)
         st.markdown("### 📊 Matched Jobs")
 
         headers = {
@@ -180,18 +175,18 @@ else:
                 job = data["job"]
                 result = data["result"]
                 score_pct = int(result["score"] * 100)
-                job_str = f"{job.get('job_title')} - {job.get('job_city')}, {job.get('job_state')} - {score_pct}% Match"
-                
+                company_name = job.get("employer_name", "Unknown Company")
+                job_str = f"{job.get('job_title')} at {company_name} - {job.get('job_city')}, {job.get('job_state')} - {score_pct}% Match"
+
                 if st.button(job_str, key=f"job_btn_{i}"):
-                    st.session_state["selected_job_index"] = i                
-                
+                    st.session_state["selected_job_index"] = i
+
                 if job.get("job_description"):
                     with st.expander("📋 View Full Job Description"):
                         st.markdown(job.get("job_description"))
 
         else:
             st.error("❌ Failed to fetch job listings.")
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Column 3: Skills / Suggestions ---
     with col3:
@@ -201,9 +196,44 @@ else:
 
             st.markdown("### 🧠 Skill Breakdown & Suggestions")
 
+            # --- Rewrite Resume Feature ---
+            if st.button("🪄 Rewrite My Resume Based on This Job"):
+                selected_job = st.session_state.job_results[selected]["job"]
+                resume_text = st.session_state.resume_text
+                job_text = selected_job.get("job_description", "")
+                
+                rewrite_payload = {
+                    "resume_text": resume_text,
+                    "job_text": job_text,
+                    "additional_info": ""  # You can add dynamic Q&A later
+                }
+
+                rewrite_response = requests.post(f"{API_URL}/rewrite_resume", json=rewrite_payload)
+
+                if rewrite_response.status_code == 200:
+                    rewritten_resume = rewrite_response.json().get("rewritten_resume", "")
+                    st.session_state["rewritten_resume_text"] = rewritten_resume
+                else:
+                    st.error("❌ Failed to rewrite resume. Please try again.")
+            
+                if "rewritten_resume_text" in st.session_state:
+                    st.markdown("### ✍️ Rewritten Resume")
+                    st.text_area(
+                        label="You can edit your rewritten resume below:",
+                        value=st.session_state["rewritten_resume_text"],
+                        height=400,
+                        key="editable_resume_text"
+                    )
+
+
             matched = result.get("matched_skills", [])
             missing = result.get("missing_skills", [])
             suggestions = result.get("suggestions", "")
+            skill_summary = result.get("skill_summary", "")
+
+            if skill_summary:
+                st.markdown("### 📘 Skill Alignment Summary")
+                st.markdown(skill_summary)
 
             if matched:
                 st.markdown("**✅ Matched Skills:**")
@@ -218,10 +248,20 @@ else:
                 st.markdown("**⚠️ Missing Skills:** None detected")
 
             st.markdown("**📝 Suggestions:**")
-            # Try to format the suggestions cleanly if it's a bulleted string
-            for line in suggestions.split("\n"):
-                if line.strip():
-                    st.markdown(f"- {line.strip()}")
+
+            if isinstance(suggestions, dict):
+                summary = suggestions.get("summary", "")
+                details = suggestions.get("details", [])
+                if summary:
+                    st.markdown(f"- {summary}")
+                for item in details:
+                    st.markdown(f"- {item}")
+            elif isinstance(suggestions, str):
+                for line in suggestions.split("\n"):
+                    if line.strip():
+                        st.markdown(f"- {line.strip()}")
+            else:
+                st.markdown("No suggestions available.")
 
         else:
             st.markdown("Select a job to see skill analysis.")

@@ -2,6 +2,7 @@
 
 import logging
 from fastapi import FastAPI
+from api.routes import router 
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router as api_router
 from prometheus_fastapi_instrumentator import Instrumentator
